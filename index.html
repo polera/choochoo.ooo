@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>choochoo.ooo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #screen {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+      line-height: 1.2;
+      color: #33ff33;
+      white-space: pre;
+      letter-spacing: 0;
+    }
+  </style>
+</head>
+<body>
+  <pre id="screen"></pre>
+  <script src="./sl.js"></script>
+  <script>
+    const screen = document.getElementById('screen');
+
+    function getTermSize() {
+      // Measure a single character cell
+      const tmp = document.createElement('span');
+      tmp.style.cssText = 'visibility:hidden;position:absolute;white-space:pre;font:inherit';
+      tmp.textContent = 'X';
+      screen.appendChild(tmp);
+      const cw = tmp.offsetWidth;
+      const ch = tmp.offsetHeight;
+      screen.removeChild(tmp);
+      const cols = Math.max(40, Math.floor(window.innerWidth  / cw));
+      const rows = Math.max(10, Math.floor(window.innerHeight / ch));
+      return { cols, rows };
+    }
+
+    function putStr(buf, str, col, cols) {
+      for (let i = 0; i < str.length; i++) {
+        const c = col + i;
+        if (c >= 0 && c < cols) buf[c] = str[i];
+      }
+    }
+
+    function main() {
+      const { cols: COLS, rows: ROWS } = getTermSize();
+
+      const LOCO_W  = Math.max(...D51_BODY.map(s => s.length),
+                                ...D51_WHEELS.flat().map(s => s.length));
+      const COAL_W  = Math.max(...D51_COAL.map(s => s.length));
+      const TRAIN_W = LOCO_W + COAL_W;
+      const TRAIN_H = D51_BODY.length + D51_WHEELS[0].length; // 10
+
+      const totalH   = SMOKE_H + TRAIN_H;
+      const topRow   = Math.max(0, Math.floor((ROWS - totalH) / 2));
+      const trainRow = topRow + SMOKE_H;
+
+      const FUNNEL_X_OFFSET = 7;
+
+      // Initialise grid
+      const grid = [];
+      for (let r = 0; r < ROWS; r++) grid.push(new Array(COLS).fill(' '));
+
+      let x     = COLS;
+      let frame = 0;
+      let timer = null;
+
+      function renderFrame() {
+        const wf    = frame % D51_WHEELS.length;
+        const sf    = Math.floor(frame / 2) % SMOKE_FRAMES.length;
+        const smoke = SMOKE_FRAMES[sf];
+
+        // Clear grid
+        for (let r = 0; r < ROWS; r++) grid[r].fill(' ');
+
+        // Locomotive body
+        for (let r = 0; r < D51_BODY.length; r++) {
+          const row = trainRow + r;
+          if (row >= 0 && row < ROWS) {
+            putStr(grid[row], D51_BODY[r],   x,          COLS);
+            putStr(grid[row], D51_COAL[r],   x + LOCO_W, COLS);
+          }
+        }
+
+        // Wheels
+        const wheelLines = D51_WHEELS[wf];
+        for (let r = 0; r < wheelLines.length; r++) {
+          const row = trainRow + D51_BODY.length + r;
+          if (row >= 0 && row < ROWS) {
+            putStr(grid[row], wheelLines[r],               x,          COLS);
+            putStr(grid[row], D51_COAL[D51_BODY.length+r], x + LOCO_W, COLS);
+          }
+        }
+
+        // Smoke
+        const stackX = x + FUNNEL_X_OFFSET;
+        for (let r = 0; r < SMOKE_H; r++) {
+          const row = topRow + r;
+          if (row >= 0 && row < ROWS) {
+            const driftX = stackX - (SMOKE_H - r);
+            putStr(grid[row], smoke[r], driftX, COLS);
+          }
+        }
+
+        screen.textContent = grid.map(row => row.join('')).join('\n');
+
+        x--;
+        frame++;
+
+        if (x + TRAIN_W < 0) {
+          // Restart
+          x = COLS;
+          frame = 0;
+        }
+
+        timer = setTimeout(renderFrame, 40);
+      }
+
+      renderFrame();
+    }
+
+    window.addEventListener('load', main);
+    window.addEventListener('resize', () => {
+      // Restart on resize for correct dimensions
+      location.reload();
+    });
+  </script>
+</body>
+</html>
